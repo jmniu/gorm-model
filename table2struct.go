@@ -182,7 +182,7 @@ func (t *Table2Struct) Run() error {
 			if v.ColumnComment != "" {
 				clumnComment = fmt.Sprintf(" // %s", v.ColumnComment)
 			}
-			structContent += fmt.Sprintf("%s%s %s %s%s\n",
+			structContent += fmt.Sprintf("%s%s *%s %s%s\n",
 				tab(depth), v.ColumnName, v.Type, v.Tag, clumnComment)
 		}
 		structContent += tab(depth-1) + "}\n\n"
@@ -244,13 +244,14 @@ type column struct {
 	TableName     string
 	ColumnComment string
 	Tag           string
+	ColumnDefault  interface{}
 }
 
 // Function for fetching schema definition of passed table
 func (t *Table2Struct) getColumns(table ...string) (tableColumns map[string][]column, err error) {
 	tableColumns = make(map[string][]column)
 	// sql
-	var sqlStr = `SELECT COLUMN_NAME,DATA_TYPE,IS_NULLABLE,TABLE_NAME,COLUMN_COMMENT
+	var sqlStr = `SELECT COLUMN_NAME,DATA_TYPE,IS_NULLABLE,TABLE_NAME,COLUMN_COMMENT,COLUMN_DEFAULT
 		FROM information_schema.COLUMNS 
 		WHERE table_schema = DATABASE()`
 	// 是否指定了具体的table
@@ -270,7 +271,7 @@ func (t *Table2Struct) getColumns(table ...string) (tableColumns map[string][]co
 
 	for rows.Next() {
 		col := column{}
-		err = rows.Scan(&col.ColumnName, &col.Type, &col.Nullable, &col.TableName, &col.ColumnComment)
+		err = rows.Scan(&col.ColumnName, &col.Type, &col.Nullable, &col.TableName, &col.ColumnComment, &col.ColumnDefault)
 
 		if err != nil {
 			fmt.Println(err.Error())
@@ -304,14 +305,20 @@ func (t *Table2Struct) getColumns(table ...string) (tableColumns map[string][]co
 			//}
 		}
 		if t.tagKey == "" {
-			t.tagKey = "orm"
+			t.tagKey = "gorm"
 		}
-		if t.enableJsonTag {
-			//col.Json = fmt.Sprintf("`json:\"%s\" %s:\"%s\"`", col.Json, t.config.TagKey, col.Json)
-			col.Tag = fmt.Sprintf("`%s:\"%s\" json:\"%s\"`", t.tagKey, col.Tag, jsonTag)
+
+		var columnDefult string
+		if col.ColumnDefault == nil {
+			columnDefult = "null"
+		} else if len(col.ColumnDefault.([]byte)) == 0 {
+			columnDefult = "''"
 		} else {
-			col.Tag = fmt.Sprintf("`%s:\"%s\"`", t.tagKey, col.Tag)
+			columnDefult = string(col.ColumnDefault.([]byte))
 		}
+
+
+		col.Tag = fmt.Sprintf("`%s:\"%s;default:%s\" json:\"%s,omitempty\"`", t.tagKey, col.Tag, columnDefult, jsonTag)
 		//columns = append(columns, col)
 		if _, ok := tableColumns[col.TableName]; !ok {
 			tableColumns[col.TableName] = []column{}
