@@ -244,7 +244,7 @@ type column struct {
 	TableName     string
 	ColumnComment string
 	Tag           string
-	ColumnDefault  interface{}
+	ColumnDefault interface{}
 }
 
 // Function for fetching schema definition of passed table
@@ -317,8 +317,7 @@ func (t *Table2Struct) getColumns(table ...string) (tableColumns map[string][]co
 			columnDefult = string(col.ColumnDefault.([]byte))
 		}
 
-
-		col.Tag = fmt.Sprintf("`%s:\"%s;default:%s\" json:\"%s,omitempty\"`", t.tagKey, col.Tag, columnDefult, jsonTag)
+		col.Tag = fmt.Sprintf("`%s:\"column:%s;default:%s\" json:\"%s,omitempty\"`", t.tagKey, col.Tag, columnDefult, jsonTag)
 		//columns = append(columns, col)
 		if _, ok := tableColumns[col.TableName]; !ok {
 			tableColumns[col.TableName] = []column{}
